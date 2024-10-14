@@ -8,6 +8,7 @@ const graphqlHttp = require('express-graphql');
 
 const graphqlSchema = require('./graphql/schema');
 const graphqlResolver = require('./graphql/resolvers');
+const auth = require('./middleware/auth');
 
 const app = express();
 
@@ -52,6 +53,8 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use(auth);
+
 app.use(
   '/graphql',
   graphqlHttp({
@@ -82,6 +85,5 @@ mongoose
   .connect("mongodb://localhost:27017/GraphQL")
   .then((result) => {
     app.listen(8080);
-    console.log("App Listening from port 8080")
   })
-  .catch((err) => console.log(err));
+  .catch(err => console.log(err));

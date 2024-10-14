@@ -1,139 +1,91 @@
-const bcrypt = require('bcryptjs');
-const validator = require('validator');
-const jwt = require('jsonwebtoken');
-
-const User = require('../models/user');
-const Post = require('../models/post');
+const bcrypt = require("bcryptjs");
+const validator = require("validator");
+const jwt = require("jsonwebtoken");
+const User = require("../models/User");
+const MarriageProfile = require("../models/marriage");
+const Alert = require("../models/alert");
+const SOSRequest = require("../models/sos");
+const Donation = require("../models/donation");
+const Notification = require("../models/notification");
 
 module.exports = {
-  createUser: async function({ userInput }, req) {
-    //   const email = args.userInput.email;
+  createUser: async ({ userInput }) => {
+    console.log("UserInput", userInput)
     const errors = [];
-    if (!validator.isEmail(userInput.email)) {
-      errors.push({ message: 'E-Mail is invalid.' });
-    }
-    if (
-      validator.isEmpty(userInput.password) ||
-      !validator.isLength(userInput.password, { min: 5 })
-    ) {
-      errors.push({ message: 'Password too short!' });
-    }
-    if (errors.length > 0) {
-      const error = new Error('Invalid input.');
-      error.data = errors;
-      error.code = 422;
-      throw error;
-    }
+    if (!validator.isEmail(userInput.email))
+      errors.push({ message: "Invalid email." });
+    if (!validator.isLength(userInput.password, { min: 6 }))
+      errors.push({ message: "Password too short." });
+
+    if (errors.length > 0) throw createError(422, errors);
+
     const existingUser = await User.findOne({ email: userInput.email });
-    if (existingUser) {
-      const error = new Error('User exists already!');
-      throw error;
-    }
-    const hashedPw = await bcrypt.hash(userInput.password, 12);
-    const user = new User({
-      email: userInput.email,
-      name: userInput.name,
-      password: hashedPw
-    });
+    if (existingUser) throw new Error("User already exists.");
+
+    const hashedPassword = await bcrypt.hash(userInput.password, 12);
+    const user = new User({ ...userInput, password: hashedPassword });
     const createdUser = await user.save();
     return { ...createdUser._doc, _id: createdUser._id.toString() };
   },
-  login: async function({ email, password }) {
-    const user = await User.findOne({ email: email });
-    if (!user) {
-      const error = new Error('User not found.');
-      error.code = 401;
-      throw error;
-    }
-    const isEqual = await bcrypt.compare(password, user.password);
-    if (!isEqual) {
-      const error = new Error('Password is incorrect.');
-      error.code = 401;
-      throw error;
-    }
+
+  login: async ({ email, password }) => {
+    const user = await User.findOne({ email });
+    if (!user) throw createError(401, "User not found.");
+
+    const isValidPassword = await bcrypt.compare(password, user.password);
+    if (!isValidPassword) throw createError(401, "Incorrect password.");
+
     const token = jwt.sign(
-      {
-        userId: user._id.toString(),
-        email: user.email
-      },
-      'somesupersecretsecret',
-      { expiresIn: '1h' }
+      { userId: user._id.toString(), email: user.email },
+      "supersecretkey",
+      { expiresIn: "1h" }
     );
-    return { token: token, userId: user._id.toString() };
+    return { token, userId: user._id.toString() };
   },
-  createPost: async function({ postInput }, req) {
-    if (!req.isAuth) {
-      const error = new Error('Not authenticated!');
-      error.code = 401;
-      throw error;
-    }
-    const errors = [];
-    if (
-      validator.isEmpty(postInput.title) ||
-      !validator.isLength(postInput.title, { min: 5 })
-    ) {
-      errors.push({ message: 'Title is invalid.' });
-    }
-    if (
-      validator.isEmpty(postInput.content) ||
-      !validator.isLength(postInput.content, { min: 5 })
-    ) {
-      errors.push({ message: 'Content is invalid.' });
-    }
-    if (errors.length > 0) {
-      const error = new Error('Invalid input.');
-      error.data = errors;
-      error.code = 422;
-      throw error;
-    }
-    const user = await User.findById(req.userId);
-    if (!user) {
-      const error = new Error('Invalid user.');
-      error.code = 401;
-      throw error;
-    }
-    const post = new Post({
-      title: postInput.title,
-      content: postInput.content,
-      imageUrl: postInput.imageUrl,
-      creator: user
-    });
-    const createdPost = await post.save();
-    user.posts.push(createdPost);
-    await user.save();
-    return {
-      ...createdPost._doc,
-      _id: createdPost._id.toString(),
-      createdAt: createdPost.createdAt.toISOString(),
-      updatedAt: createdPost.updatedAt.toISOString()
-    };
+
+  createDonation: async ({ donationInput }) => {
+    const donation = new Donation({ ...donationInput });
+    const createdDonation = await donation.save();
+    return { ...createdDonation._doc, _id: createdDonation._id.toString() };
   },
-  posts: async function({ page }, req) {
-    if (!req.isAuth) {
-      const error = new Error('Not authenticated!');
-      error.code = 401;
-      throw error;
-    }
-    if (!page) {
-      page = 1;
-    }
-    const perPage = 2;
-    const totalPosts = await Post.find().countDocuments();
-    const posts = await Post.find()
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * perPage)
-      .limit(perPage)
-      .populate('creator');
-    return {
-      posts: posts.map(p => {
-        return {
-          ...p._doc,
-          _id: p._id.toString(),
-          createdAt: p.createdAt.toISOString(),
-          updatedAt: p.updatedAt.toISOString()
-        };
-      }),
-      totalPosts: totalPosts
-    };
-  }
+
+  createMarriageProfile: async ({ input }) => {
+    const profile = new MarriageProfile({ ...input });
+    const createdProfile = await profile.save();
+    return { ...createdProfile._doc, _id: createdProfile._id.toString() };
+  },
+
+  createAlert: async ({ input }) => {
+    const alert = new Alert({ ...input });
+    const createdAlert = await alert.save();
+    return { ...createdAlert._doc, _id: createdAlert._id.toString() };
+  },
+
+  createSOSRequest: async ({ input }) => {
+    const sosRequest = new SOSRequest({ ...input });
+    const createdRequest = await sosRequest.save();
+    return { ...createdRequest._doc, _id: createdRequest._id.toString() };
+  },
+
+  getSOSRequests: async () => {
+    const sosRequests = await SOSRequest.find();
+    return sosRequests.map((req) => ({ ...req._doc, _id: req._id.toString() }));
+  },
+
+  getUser: async ({ id }) => {
+    const user = await User.findById(id);
+    if (!user) throw new Error("User not found.");
+    return { ...user._doc, _id: user._id.toString() };
+  },
+
+  getNotifications: async ({ userId }) => {
+    const notifications = await Notification.find({ user: userId });
+    return notifications.map((n) => ({ ...n._doc, _id: n._id.toString() }));
+  },
 };
+
+function createError(code, message) {
+  const error = new Error(message);
+  error.code = code;
+  throw error;
+}

@@ -85,5 +85,6 @@ mongoose
   .connect("mongodb://localhost:27017/GraphQL")
   .then((result) => {
     app.listen(8080);
+    console.log("listen port at 8080")
   })
   .catch(err => console.log(err));

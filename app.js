@@ -46,6 +46,9 @@ app.use((req, res, next) => {
     'OPTIONS, GET, POST, PUT, PATCH, DELETE'
   );
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
   next();
 });
 
@@ -76,10 +79,9 @@ app.use((error, req, res, next) => {
 });
 
 mongoose
-  .connect(
-    'mongodb+srv://maximilian:9u4biljMQc4jjqbe@cluster0-ntrwp.mongodb.net/messages?retryWrites=true'
-  )
-  .then(result => {
+  .connect("mongodb://localhost:27017/GraphQL")
+  .then((result) => {
     app.listen(8080);
+    console.log("App Listening from port 8080")
   })
-  .catch(err => console.log(err));
+  .catch((err) => console.log(err));
